@@ -1,4 +1,4 @@
-# bayes-to-cnf
+# bn-to-cnf
 Encode Bayesian Networks into Conjunctive Normal Form and write it to output file in DIMACS format.
 
 ## Synopsis
