@@ -30,3 +30,5 @@ The program takes a HUGIN encoded Bayesian Network as input and encodes it into 
 Just type:
 > make
 
+NOTE: This requires the [quine-mccluskey](https://github.com/gisodal/quine-mccluskey) repository! For a stand alone version use [bayes-to-cnf](https://github.com/gisodal/bayes-to-cnf).
+
