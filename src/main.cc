@@ -21,7 +21,7 @@ void help(){
     fprintf(stderr, "      optimizations:\n");
     fprintf(stderr, "         -p: Partition cnf per CPT\n");
     fprintf(stderr, "         -c: Constraints are supressed\n");
-    fprintf(stderr, "         -e: Equal probabilities is encoded\n");
+    fprintf(stderr, "         -e: Equal probabilities are encoded\n");
     fprintf(stderr, "         -d: Determinism is encoded\n");
     fprintf(stderr, "         -a: Apply boolean symplification\n");
     fprintf(stderr, "         -b: Boolean variables are not mapped\n");
