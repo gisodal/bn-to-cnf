@@ -72,7 +72,7 @@ class bayesnet {
         bayesnet& operator=(bayesnet&);
         unsigned int get_nr_variables();
 
-        static bayesnet* read(char*);
+        static bayesnet* read(const char*);
 
         inline uint32_t* get_states();
         inline uint32_t* get_parent(unsigned int);

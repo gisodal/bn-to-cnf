@@ -297,7 +297,7 @@ void bayesnet::print(){
     }
 }
 
-bayesnet* bayesnet::read(char *infile){
+bayesnet* bayesnet::read(const char *infile){
     parser<hugin> net;
     printf("Parsing HUGIN file\n");
     if(!net.process(infile))
