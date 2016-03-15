@@ -299,27 +299,14 @@ void bayesnet::print(){
 
 bayesnet* bayesnet::read(const char *infile){
     parser<hugin> net;
-    printf("Parsing HUGIN file\n");
     if(!net.process(infile))
         fprintf(stderr, "Failed to parse %s\n", infile);
     else {
-        printf("DONE\n\n");
-
         // get bayesian network
-        bayesnet *bn = NULL;
         try {
-            printf("Loading Bayesian Netork\n");
-            bn = net.get_bayesnet();
-            if(bn == NULL){
-                fprintf(stderr, "FAILED\n");
-                return NULL;
-            } else {
-                printf("DONE\n\n");
-                return bn;
-            }
+            return net.get_bayesnet();
         } catch(throw_string_error &e){
             fprintf(stderr, "error: %s\n", e.what());
-            fprintf(stderr, "FAILED\n");
             return NULL;
         }
     }
