@@ -1,3 +1,4 @@
+#include "exceptions.h"
 #include "bayesnet.h"
 #include <deque>
 #include <list>
@@ -299,16 +300,17 @@ void bayesnet::print(){
 
 bayesnet* bayesnet::read(const char *infile){
     parser<hugin> net;
-    if(!net.process(infile))
-        fprintf(stderr, "Failed to parse %s\n", infile);
-    else {
-        // get bayesian network
-        try {
-            return net.get_bayesnet();
-        } catch(throw_string_error &e){
-            fprintf(stderr, "error: %s\n", e.what());
-            return NULL;
-        }
+    try {
+        net.process(infile);
+    } catch(parser_exception &e){
+        throw bayesnet_exception("Failed to parse %s (%s)", infile, e.what());
+    }
+
+    // get bayesian network
+    try {
+        return net.get_bayesnet();
+    } catch(throw_string_error &e){
+        throw bayesnet_exception("%s", e.what());
     }
     return NULL;
 }

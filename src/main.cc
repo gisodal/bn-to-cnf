@@ -1,3 +1,4 @@
+#include "exceptions.h"
 #include <stdio.h>
 #include <string>
 #include <unistd.h>
@@ -107,31 +108,34 @@ int main(int argc, char **argv){
     }
 
     parser<hugin> net;
-    if(!net.process(infile))
-        fprintf(stderr, "FAILED\n");
-    else {
-        f.set_filename(outfile);
-        bayesnet *bn = NULL;
-        try {
-            bn = net.get_bayesnet();
-            if(bn == NULL)
-                fprintf(stderr, "FAILED\n");
-        } catch(throw_string_error &e){
-            fprintf(stderr, "error: %s\n", e.what());
-            fprintf(stderr, "FAILED\n");
-            return -1;
-        }
-
-        f.encode(bn);
-        if(write)
-            f.write();
-
-        if(stats)
-            f.stats();
-
-        // f.print();
-        delete bn;
+    try {
+        net.process(infile);
+    } catch(parser_exception &e){
+        fprintf(stderr, "Failed to parse %s (%s)", infile, e.what());
+        return 1;
     }
+
+    f.set_filename(outfile);
+    bayesnet *bn = NULL;
+    try {
+        bn = net.get_bayesnet();
+        if(bn == NULL)
+            fprintf(stderr, "FAILED\n");
+    } catch(throw_string_error &e){
+        fprintf(stderr, "error: %s\n", e.what());
+        fprintf(stderr, "FAILED\n");
+        return -1;
+    }
+
+    f.encode(bn);
+    if(write)
+        f.write();
+
+    if(stats)
+        f.stats();
+
+    // f.print();
+    delete bn;
 
     return 0;
 }

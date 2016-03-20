@@ -34,7 +34,7 @@ CFLAGS   = -w
 O        = -O3
 
 # ------------------------------------------------------------------------------
-# Directory variables
+# Environment variables
 # ------------------------------------------------------------------------------
 
 # use bash instead of sh
@@ -48,7 +48,7 @@ SDIR := src
 TDIR := tar
 IDIR := include
 ARCH := $(shell getconf LONG_BIT)
-DIR := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
+DIR  := $(patsubst %/,%,$(dir $(abspath $(lastword $(MAKEFILE_LIST)))))
 
 # ------------------------------------------------------------------------------
 # User variables
@@ -92,8 +92,8 @@ DEPS     = $(OBJS:.o=.d)
 
 # library / include paths
 INCLUDE_DIR := $(IDIR) $(INCLUDE_DIR)
-LIB = $(foreach d, $(LIBRARY_DIR),-L$d)
-INC = $(foreach d, $(INCLUDE_DIR),-I$d)
+INCLUDE     := $(foreach d, $(INCLUDE_DIR),-I$d)
+LIBRARY 	:= $(foreach d, $(LIBRARY_DIR),-L$d)
 
 # shared/static libraries to link
 STATIC = $(foreach l, $(STATIC_LIBRARIES),-l$l)
@@ -101,13 +101,13 @@ SHARED = $(foreach l, $(SHARED_LIBRARIES),-l$l)
 SHARED_LIBRARY_DIR = $(foreach l, $(LIBRARY_DIR),-Wl,-R$l)
 
 ifneq ($(STATIC),)
-	LIB += -Wl,-Bstatic $(STATIC)
+	LIBRARY += -Wl,-Bstatic $(STATIC)
 endif
 
 ifneq ($(SHARED),)
-	LIB += -Wl,-Bdynamic $(SHARED) $(SHARED_LIBRARY_DIR)
+	LIBRARY += -Wl,-Bdynamic $(SHARED) $(SHARED_LIBRARY_DIR)
 else ifneq ($(STATIC),)
-	LIB += -Wl,-Bdynamic
+	LIBRARY += -Wl,-Bdynamic
 endif
 
 STATICLIB  = lib$(PROJECT).a
@@ -150,7 +150,6 @@ recursivewildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call recursivew
 	lines           \
 	clean           \
  	cleandist		\
-	pull   			\
 	dist         	\
 	help
 
@@ -193,7 +192,7 @@ strip:
 
 # compile with profile
 profile: CFLAGS += -pg
-profile: LINK = -pg
+profile: LFLAGS = -pg
 profile: build
 
 # compile to assembly
@@ -203,7 +202,7 @@ assembly: build
 # create static library
 static: $(LDIR)/$(STATICLIB)
 
-$(LDIR)/$(STATICLIB): $(LIBOBJS) | $(LDIR)
+$(LDIR)/$(STATICLIB): $(LIBOBJS) $(STATICLIBS) | $(LDIR)
 	@echo "LINK $(LDIR)/$(STATICLIB)"
 	@ar rcs $(LDIR)/$(STATICLIB) $(LIBOBJS)
 
@@ -215,7 +214,7 @@ debug-static: static
 dynamic: $(LDIR)/$(DYNAMICLIB)
 
 $(LDIR)/$(DYNAMICLIB): CFLAGS += -fPIC
-$(LDIR)/$(DYNAMICLIB): $(LIBOBJS) | $(LDIR)
+$(LDIR)/$(DYNAMICLIB): $(LIBOBJS) $(STATICLIBS) | $(LDIR)
 	@echo "LINK $(LDIR)/lib$(PROJECT).so"
 	@$(CC) -shared -fPIC -Wl,-soname,lib$(PROJECT).so.$(VERSION) -o $(LDIR)/$(DYNAMICLIB) $(LIBOBJS)
 	@ln -sf $(DYNAMICLIB) $(LDIR)/lib$(PROJECT).so
@@ -229,16 +228,16 @@ debug-dynamic: dynamic
 # create object and dependency files
 $(ODIR)/%.o: $(SDIR)/%.c | $(ODIR)
 	@echo "CC $<"
-	@gcc -o $@ -c $< $(O) $(CFLAGS) $(INC) -MMD
+	@gcc -o $@ -c $< $(O) $(CFLAGS) $(INCLUDE) -MMD
 
 $(ODIR)/%.o: $(SDIR)/%.cc | $(ODIR)
 	@echo "CXX $<"
-	@g++ -o $@ -c $< $(O) $(CFLAGS) $(CXXFLAGS) $(INC) -MMD
+	@g++ -o $@ -c $< $(O) $(CFLAGS) $(CXXFLAGS) $(INCLUDE) -MMD
 
 # create (link) executable binary
 $(BDIR)/$(PROJECT): $(OBJS) $(STATICLIBS) | $(BDIR)
 	@echo "LINK $@"
-	@$(CC) -o $@ $(OBJS) $(LIB) $(LINK)
+	@$(CC) -o $@ $(OBJS) $(LIBRARY) $(LFLAGS)
 
 # install to PREFIX
 install-bin: $(PREFIX)/$(BDIR)/$(PROJECT)
@@ -270,24 +269,24 @@ $(PREFIX)/$(IDIR)/$(PROJECT)/%.h: $(IDIR)/%.h
 
 install: install-bin install-include install-static
 
-# create directories
+# create source tree with main.cc
+setup: $(IDIR) $(SDIR)/main.cc
+
 $(SDIR)/main.cc: | $(SDIR)
 	@echo "CREATE $@"
 	@echo -e "int main(int argc, char **argv){\n    return 0;\n}\n" >> $@
 
-setup: $(IDIR) $(SDIR)/main.cc
-
-
+# generate user config file
 config: $(MAKEFILE_USER)
-
 
 $(MAKEFILE_USER):
 	@echo "CREATE $(MAKEFILE_USER)"
-	@cat Makefile | head -21 | tail -8 		>  $(MAKEFILE_USER)
 	@echo "# install prefix" 				>> $(MAKEFILE_USER)
 	@echo "PREFIX ?=" 						>> $(MAKEFILE_USER)
-	@cat Makefile | head -34 | tail -10 	>> $(MAKEFILE_USER)
+	@echo 									>> $(MAKEFILE_USER)
+	@cat Makefile | head -34 | tail -20 	>> $(MAKEFILE_USER)
 
+# create directories
 $(SDIR):
 	@echo "MKDIR $@"
 	@mkdir $(SDIR)
@@ -345,10 +344,6 @@ cleandist:
 	@echo "RM $(ODIR)"
 	@$(RM) -r $(ODIR)
 
-# git pull
-pull:
-	@git pull
-
 # echo make options
 help:
 	@echo "Usage:"
@@ -371,7 +366,6 @@ help:
 	@echo "    config    : create Makefile.user for user customizations"
 	@echo "    clean     : remove object files, libraries and binary"
 	@echo "    cleandist : remove object files"
-	@echo "    pull      : perform git pull"
 	@echo "    dist      : create tarball of source files"
 	@echo "    help      : print this help"
 	@echo ""

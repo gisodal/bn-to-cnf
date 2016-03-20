@@ -101,7 +101,7 @@ namespace HUGIN {
 struct hugin {
     hugin();
 
-    bool process(std::string);
+    void process(std::string); // throws parser_exception
     HUGIN::domain_definition definition;
     void parse(reader&);
     void print();

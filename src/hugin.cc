@@ -1,3 +1,4 @@
+#include "exceptions.h"
 #include "hugin.h"
 #include <stdarg.h>
 
@@ -12,7 +13,7 @@ hugin::hugin(){
     input.add_delimiters(comment_delimiter, 1, '%', '\n');
 }
 
-bool hugin::process(string f){
+void hugin::process(string f){
     try {
         filename = f;
         input.set_filename(f);
@@ -20,18 +21,14 @@ bool hugin::process(string f){
             try {
                 definition.parse(input);
             } catch (parse_error& e) {
-                fprintf(stderr, "an error occurred while reading: %s\n", e.what());
-                return false;
+                throw parser_exception("HUGIN ERROR: %s", e.what());
             }
 
             input.close();
-            return true;
-        } else fprintf(stderr, "could not open file %s\n", input.get_filename().c_str());
+        } else throw parser_exception("HUGIN ERROR: could not open file %s", input.get_filename().c_str());
     } catch(reader_error& e) {
-        fprintf(stderr, "an error occurred while reading: %s\n", e.what());
+        throw parser_exception("HUGIN ERROR: %s", e.what());
     }
-
-    return false;
 }
 
 void domain_definition::parse(reader &input){
