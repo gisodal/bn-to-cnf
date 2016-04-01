@@ -8,6 +8,7 @@ using namespace HUGIN;
 hugin::hugin(){
     input.add_delimiters(standard_delimiter, 3, '=', ';', ',');
     input.add_delimiters(ignore_delimiter, 3, ' ', '\t', '\n', '\r');
+    input.add_delimiters(escape_delimiter, 1, '\\', '*');
     input.add_delimiters(string_scope_delimiter, 1, '"', '"');
     input.add_delimiters(scope_delimiter, 2, '{', '}', '(', ')');
     input.add_delimiters(comment_delimiter, 1, '%', '\n');

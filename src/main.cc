@@ -111,7 +111,7 @@ int main(int argc, char **argv){
     try {
         net.process(infile);
     } catch(parser_exception &e){
-        fprintf(stderr, "Failed to parse %s (%s)", infile, e.what());
+        fprintf(stderr, "Failed to parse %s (%s)\n", infile, e.what());
         return 1;
     }
 

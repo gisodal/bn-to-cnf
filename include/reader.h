@@ -19,7 +19,8 @@ enum delimiter_type {
     // scoped delimiters
     scope_delimiter         = 4,
     string_scope_delimiter  = 5,
-    comment_delimiter       = 6
+    comment_delimiter       = 6,
+    escape_delimiter        = 7
 };
 
 struct delimiter_element {

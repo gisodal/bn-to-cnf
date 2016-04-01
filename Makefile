@@ -34,6 +34,45 @@ CFLAGS   = -w
 O        = -O3
 
 # ------------------------------------------------------------------------------
+# Color Functions
+# ------------------------------------------------------------------------------
+
+RESET = \033[0m
+BOLD  = \033[1m
+make_std_color = \033[3$1m 		# defined for 1 through 7
+make_color	   = \033[38;5;$1m	# defined for 1 through 255
+
+RED		= $(call make_std_color,1)
+YELLOW	= $(call make_std_color,3)
+GREY	= $(call make_color,8)
+WRN_COLOR = $(strip $(YELLOW))
+ERR_COLOR = $(strip $(RED))
+STD_COLOR = $(strip $(GREY))
+
+COLOR_OUTPUT = 2>&1 | \
+	while IFS='' read -r line; do 									\
+		if 	[[ $$line == *:[\ ]error:* ]] || 						\
+			[[ $$line == *:[\ ]undefined* ]] || 					\
+			[[ $$line == *:[\ ]fatal\ error:* ]] 					\
+			|| [[ $$line == *:[\ ]multiple[\ ]definition* ]]; then 	\
+			echo -e "$(ERR_COLOR)$${line}$(RESET)"; 				\
+        elif [[ $$line == *:[\ ]warning:* ]]; then   				\
+            echo -e "$(WRN_COLOR)$${line}$(RESET)" ; 				\
+        else                                           				\
+            echo -e "$(STD_COLOR)$${line}$(RESET)"; 				\
+        fi;															\
+    done; exit $${PIPESTATUS[0]};
+
+
+
+# ------------------------------------------------------------------------------
+# Functions
+# ------------------------------------------------------------------------------
+
+recursive_wildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call recursive_wildcard,$d/,$2))
+find_staticlibrary=$(firstword $(foreach d, $(LIBRARY_DIR) $(subst :, ,$(LD_LIBRARY_PATH)), $(wildcard $d/lib$1.a)))
+
+# ------------------------------------------------------------------------------
 # Environment variables
 # ------------------------------------------------------------------------------
 
@@ -112,13 +151,7 @@ endif
 
 STATICLIB  = lib$(PROJECT).a
 DYNAMICLIB = lib$(PROJECT).so.$(VERSION).$(SUBVERSION).$(PATCHLEVEL)
-STATICLIBS = $(foreach l, $(STATIC_LIBRARIES), $(foreach d, $(LIBRARY_DIR), $(wildcard $d/lib$l.a)))
-
-# ------------------------------------------------------------------------------
-# Functions
-# ------------------------------------------------------------------------------
-
-recursivewildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call recursivewildcard,$d/,$2))
+STATICLIBS = $(foreach l, $(STATIC_LIBRARIES), $(foreach d, $(LIBRARY_DIR) $(subst :, ,$(LD_LIBRARY_PATH)), $(wildcard $d/lib$l.a)))
 
 # ------------------------------------------------------------------------------
 # Rules
@@ -133,6 +166,7 @@ recursivewildcard=$(wildcard $1$2) $(foreach d,$(wildcard $1*),$(call recursivew
 	build-x64       \
 	error           \
 	debug           \
+	object			\
 	strip			\
 	profile         \
 	assembly        \
@@ -228,16 +262,16 @@ debug-dynamic: dynamic
 # create object and dependency files
 $(ODIR)/%.o: $(SDIR)/%.c | $(ODIR)
 	@echo "CC $<"
-	@gcc -o $@ -c $< $(O) $(CFLAGS) $(INCLUDE) -MMD
+	@gcc -o $@ -c $< $(O) $(CFLAGS) $(INCLUDE) -MMD $(COLOR_OUTPUT)
 
 $(ODIR)/%.o: $(SDIR)/%.cc | $(ODIR)
 	@echo "CXX $<"
-	@g++ -o $@ -c $< $(O) $(CFLAGS) $(CXXFLAGS) $(INCLUDE) -MMD
+	@g++ -o $@ -c $< $(O) $(CFLAGS) $(CXXFLAGS) $(INCLUDE) -MMD $(COLOR_OUTPUT)
 
 # create (link) executable binary
 $(BDIR)/$(PROJECT): $(OBJS) $(STATICLIBS) | $(BDIR)
 	@echo "LINK $@"
-	@$(CC) -o $@ $(OBJS) $(LIBRARY) $(LFLAGS)
+	@$(CC) -o $@ $(OBJS) $(LIBRARY) $(LFLAGS) $(COLOR_OUTPUT)
 
 # install to PREFIX
 install-bin: $(PREFIX)/$(BDIR)/$(PROJECT)
@@ -259,7 +293,7 @@ $(PREFIX)/$(LDIR)$(ARCH)/$(DYNAMICLIB): $(LDIR)/$(DYNAMICLIB) | $(PREFIX)/$(LDIR
 	@cp $(LDIR)/lib$(PROJECT).so* $(PREFIX)/$(LDIR)$(ARCH)
 
 install-include: $(PREFIX)/$(IDIR)/$(PROJECT) \
-	$(patsubst $(IDIR)/%,$(PREFIX)/$(IDIR)/$(PROJECT)/%,$(call recursivewildcard,$(IDIR)/,*.h))
+	$(patsubst $(IDIR)/%,$(PREFIX)/$(IDIR)/$(PROJECT)/%,$(call recursive_wildcard,$(IDIR)/,*.h))
 
 $(PREFIX)/$(IDIR)/$(PROJECT)/%.h: $(IDIR)/%.h
 	@echo "INSTALL $<"
@@ -268,6 +302,23 @@ $(PREFIX)/$(IDIR)/$(PROJECT)/%.h: $(IDIR)/%.h
 	@sed -i '/#include .*\.tcc/d' $@
 
 install: install-bin install-include install-static
+
+# compile object
+ifeq ($(firstword $(MAKECMDGOALS)),object)
+ARGS := $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+$(eval $(ARGS):;@:)
+endif
+
+object: BASENAME = $(wordlist 2,$(words $(MAKECMDGOALS)),$(MAKECMDGOALS))
+object: SRC = $(foreach f,$(BASENAME),$(wildcard $(SDIR)/$f.c) $(wildcard $(SDIR)/$f.cc))
+object: OBJ = $(foreach f,$(BASENAME),$(patsubst $(SDIR)/%.c,$(ODIR)/%.o,$(wildcard $(SDIR)/$f.c))) \
+			  $(foreach f,$(BASENAME),$(patsubst $(SDIR)/%.cc,$(ODIR)/%.o,$(wildcard $(SDIR)/$f.cc)))
+object:
+	@if [ -n "$(strip $(OBJ))" ]; then 								\
+		$(MAKE) --no-print-directory $(OBJ) | sed 's:\[.*\]::';		\
+	else 															\
+		echo "No sourcefile found with basename(s):  $(BASENAME)"; 	\
+	fi;
 
 # create source tree with main.cc
 setup: $(IDIR) $(SDIR)/main.cc
@@ -355,6 +406,7 @@ help:
 	@echo "    build-x86 : Explicitly compile for 32bit architecture"
 	@echo "    build-x64 : Explicitly compile for 64bit architecture"
 	@echo "    debug     : compile with debug symbols"
+	@echo "    object    : compile object of provided source basename"
 	@echo "    strip     : remove stl library symbols from binary"
 	@echo "    profile   : compile with profiling capabilities"
 	@echo "    assembly  : print assembly"

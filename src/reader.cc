@@ -197,10 +197,15 @@ delimiter_t reader::get_delimiter(char c){
             }
         } else if(!scope.empty()){
             delimiter_t d = scope.top();
-            if(c == d.ce)
+            if(d.type == escape_delimiter)
+                return create_delimiter(no_delimiter, c);
+            else if(c == d.ce)
                 return d;
         }
-        return create_delimiter(no_delimiter, c);
+        if(c == '\\')
+            return create_delimiter(escape_delimiter, '\\', '*');
+        else return create_delimiter(no_delimiter, c);
+
     }
 }
 
@@ -270,9 +275,17 @@ string reader::get_word(){
             char c;
             delimiter_t d;
             do {
-                    c = get_char();
+                c = get_char();
                 d = get_delimiter(c);
-                if(d.type == standard_delimiter){
+                if(!scope.empty() && scope.top().type == escape_delimiter){
+                    scope.pop();
+                    d.type = no_delimiter;
+                    word += c;
+                } else if(d.type == escape_delimiter){
+                    scope.push(d);
+                    d.type = no_delimiter;
+                    word += c;
+                } else if(d.type == standard_delimiter){
                     if(word.empty())
                         word += c;
                     else unget_char(c);
@@ -340,7 +353,11 @@ string reader::get_word(){
                     if(word.empty())
                         word = last_word();
 
-                } else word += c;
+                } else {
+                    word += c;
+                    if(!scope.empty() && scope.top().type == escape_delimiter)
+                        scope.pop();
+                }
 
             } while(d.type == no_delimiter);
 
