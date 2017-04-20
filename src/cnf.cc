@@ -33,6 +33,7 @@ expression::expression(){
 
 expression& expression::operator=(const expression &e){
     clauses = e.clauses;
+    DETERMINISTIC = e.DETERMINISTIC;
     LITERALS = e.LITERALS;
     WEIGHTS = e.WEIGHTS;
     mapped = e.mapped;
@@ -49,6 +50,7 @@ expression& expression::operator=(const expression &e){
 void expression::clear(){
     LITERALS = 0;
     WEIGHTS = 0;
+    DETERMINISTIC = 0;
     mapped = false;
 
     values.clear();
@@ -93,6 +95,10 @@ unsigned int expression::get_nr_literals() const {
 
 unsigned int expression::get_nr_weights() const {
     return WEIGHTS;
+}
+
+unsigned int expression::get_nr_deterministic() const {
+    return DETERMINISTIC;
 }
 
 unsigned int expression::get_nr_variables() const {
@@ -457,6 +463,7 @@ void cnf::stats(FILE *file, expression_t* e){
     fprintf(file,"%s\n",prefix,prefix);
     fprintf(file,"%sVariables       : %d\n", prefix, VARIABLES);
     fprintf(file,"%sProbabilities   : %d\n", prefix, e->WEIGHTS);
+    fprintf(file,"%sDeterministic   : %d\n", prefix, e->DETERMINISTIC);
     fprintf(file,"%sLiterals        : %d\n", prefix, e->LITERALS);
     fprintf(file,"%sClauses         : %d\n", prefix, e->clauses.size());
 
@@ -785,7 +792,9 @@ void cnf::encode_probabilities(){
             clause_t &c = expr.clauses.back();
 
             probability_t p = bn->cpt[bn->cpt_offset[i]+q++];
-            //if(p != 0 && p != 1){
+            if(p == 0 || p == 1)
+                expr.DETERMINISTIC++;
+
                 c.w = weight_to_probability.size(); //clause_to_weight.push_back(weight_to_probability.size());
                 weight_to_probability.push_back(p);
                 expr.WEIGHTS = weight_to_probability.size();
