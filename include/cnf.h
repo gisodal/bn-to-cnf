@@ -44,6 +44,7 @@ class expression {
         unsigned int get_nr_variables() const;
         unsigned int get_nr_weights() const;
         unsigned int get_nr_deterministic() const;
+        unsigned int get_nr_zero() const ;
         unsigned int get_nr_literals() const;
         unsigned int get_nr_clauses() const;
         void map_literals();
@@ -64,6 +65,7 @@ class expression {
         unsigned int LITERALS;
         unsigned int WEIGHTS;
         unsigned int DETERMINISTIC;
+        unsigned int ZERO;
         bool mapped;
         array_t values;
         array_t literal_to_variable;
