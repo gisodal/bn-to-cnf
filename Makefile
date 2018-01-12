@@ -29,7 +29,7 @@ STATIC_LIBRARIES =
 SHARED_LIBRARIES =
 
 # compiler and compiler flags
-CXXFLAGS = -std=c++11
+CXXFLAGS = -w -std=c++11
 CFLAGS   = -w
 O        = -O3
 
@@ -101,8 +101,11 @@ MAKEFILE_USER = Makefile.user
 # Compilation variables
 # ------------------------------------------------------------------------------
 
-CDFLAGS += -g -Wall -Wextra -D DEBUG -Wno-format -Wno-write-strings \
-		   -Wno-unused-function -Wno-unused-parameter -Wno-system-headers
+CDFLAGS += -ggdb3 -Wall -Wextra -D DEBUG -Wno-format -Wno-write-strings \
+		   -Wno-unused-function -Wno-unused-parameter -Wno-system-headers \
+		   -Wno-format-security -Wno-ignored-qualifiers
+
+CXXDFLAGS += $(CDFLAGS)
 
 # set containting directory is default project name
 ifeq ($(PROJECT),)
@@ -202,35 +205,54 @@ rebuild: clean build
 
 # explicitly compile for x86 architecture
 build-x86: ARCH=32
-build-x86: CFLAGS += -m32
+build-x86: CFLAGS   += -m32
+build-x86: CXXFLAGS += -m32
+build-x86: LDFLAGS  += -m32
 build-x86: build
 
 # explicitly compile for 64 bit architecture
 build-x64: ARCH=64
-build-x64: CFLAGS += -m64
+build-x64: CFLAGS   += -m64
+build-x64: CXXFLAGS += -m64
+build-x64: LDFLAGS  += -m64
 build-x64: build
 
 # compile with debug symbols
-debug: CFLAGS = $(CDFLAGS)
+debug: CFLAGS   += $(CDFLAGS)
+debug: CXXFLAGS += $(CXXDFLAGS)
 debug: O = -O0
 debug: build
 
 # compile until first error
 error: CFLAGS += -Wfatal-errors
+error: CXXFLAGS += -Wfatal-errors
 error: build
 
 # strip stl library symbols
+# Determine regular expression <regex> that covers (STL) namespace using:
+# > nm --debug-syms <binary>
+# E.g., STL symbols start with '_ZSt[0-9]'. Use GNU strip to remove them:
+# > strip --wildcard --strip-symbol='<regex>' <binary>
+# Be aware that [0-9]* does not mean 0 to infinite numbers, but 1 number followed by anything.
 strip:
 	@echo "STRIP $(BDIR)/$(PROJECT)"
-	@strip -w -N '_ZNSt*' $(BDIR)/$(PROJECT)
+	@strip --wildcard 				\
+		--strip-symbol='_ZNKSt*'    \
+		--strip-symbol='_ZNSt*' 	\
+		--strip-symbol='_ZSt*'      \
+		--strip-symbol='_ZNSa*' 	\
+		--strip-symbol='*gnu_cxx*'  \
+		$(BDIR)/$(PROJECT)
 
 # compile with profile
-profile: CFLAGS += -pg
-profile: LFLAGS = -pg
+profile: CFLAGS   += -pg
+profile: CXXFLAGS += -pg
+profile: LDFLAGS  += -pg
 profile: build
 
 # compile to assembly
-assembly: CFLAGS += -Wa,-a,-ad
+assembly: CFLAGS   += -Wa,-a,-ad
+assembly: CXXFLAGS += -Wa,-a,-ad
 assembly: build
 
 # create static library
@@ -240,7 +262,8 @@ $(LDIR)/$(STATICLIB): $(LIBOBJS) $(STATICLIBS) | $(LDIR)
 	@echo "LINK $(LDIR)/$(STATICLIB)"
 	@ar rcs $(LDIR)/$(STATICLIB) $(LIBOBJS)
 
-debug-static: CFLAGS = $(CDFLAGS)
+debug-static: CFLAGS   += $(CDFLAGS)
+debug-static: CXXFLAGS += $(CXXDFLAGS)
 debug-static: O = -O0
 debug-static: static
 
@@ -255,7 +278,8 @@ $(LDIR)/$(DYNAMICLIB): $(LIBOBJS) $(STATICLIBS) | $(LDIR)
 	@ln -sf $(DYNAMICLIB) $(LDIR)/lib$(PROJECT).so.$(VERSION)
 	@ln -sf $(DYNAMICLIB) $(LDIR)/lib$(PROJECT).so.$(VERSION).$(SUBVERSION)
 
-debug-dynamic: CFLAGS = $(CDFLAGS)
+debug-dynamic: CFLAGS   += $(CDFLAGS)
+debug-dynamic: CXXFLAGS += $(CXXDFLAGS)
 debug-dynamic: O = -O0
 debug-dynamic: dynamic
 
@@ -266,12 +290,12 @@ $(ODIR)/%.o: $(SDIR)/%.c | $(ODIR)
 
 $(ODIR)/%.o: $(SDIR)/%.cc | $(ODIR)
 	@echo "CXX $<"
-	@g++ -o $@ -c $< $(O) $(CFLAGS) $(CXXFLAGS) $(INCLUDE) -MMD $(COLOR_OUTPUT)
+	@g++ -o $@ -c $< $(O) $(CXXFLAGS) $(INCLUDE) -MMD $(COLOR_OUTPUT)
 
 # create (link) executable binary
 $(BDIR)/$(PROJECT): $(OBJS) $(STATICLIBS) | $(BDIR)
 	@echo "LINK $@"
-	@$(CC) -o $@ $(OBJS) $(LIBRARY) $(LFLAGS) $(COLOR_OUTPUT)
+	@$(CC) -o $@ $(OBJS) $(LIBRARY) $(LDFLAGS) $(COLOR_OUTPUT)
 
 # install to PREFIX
 install-bin: $(PREFIX)/$(BDIR)/$(PROJECT)

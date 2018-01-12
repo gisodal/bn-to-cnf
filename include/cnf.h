@@ -14,6 +14,7 @@ class bayesnet;
 typedef int32_t literal_t;
 typedef uint32_t uliteral_t;
 typedef uint32_t variable_t;
+typedef std::vector<variable_t> variable_set_t;
 typedef literal_t weight_t;
 typedef uint8_t bool_t;
 
