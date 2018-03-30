@@ -190,11 +190,17 @@ unsigned int bayesnet::get_nr_variables(){
     return size;
 }
 
+size_t bayesnet::get_nr_probabilities(){
+    return nr_probabilities;
+}
+
+
 void bayesnet::init(dynamic_bayesnet *dbn){
     size = dbn->nodes.size();
     msg = NULL;
     dirty = true;
 
+    nr_probabilities = dbn->cpt_size;
     cpt = (probability_t*) malloc(sizeof(probability_t)*dbn->cpt_size);
     parent = (uint32_t*) malloc(sizeof(uint32_t)*dbn->parent_size);
     child = (uint32_t*) malloc(sizeof(uint32_t)*dbn->child_size);
@@ -266,7 +272,7 @@ void bayesnet::print(){
         if(dict){
             printf("  * node %d: %s\n", i, dict->id_to_name[i].c_str());
 
-            printf("    - values   (%lu):", states[i]);
+            printf("    - values   (%u):", states[i]);
             for(unsigned int j = 0; j < dict->value[i].size(); j++)
                 printf(" [%s]", dict->value[i][j].c_str());
             printf("\n");

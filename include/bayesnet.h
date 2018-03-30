@@ -71,6 +71,7 @@ class bayesnet {
         bayesnet& operator=(bayesnet*);
         bayesnet& operator=(bayesnet&);
         unsigned int get_nr_variables();
+        size_t get_nr_probabilities();
 
         static bayesnet* read(const char*); // throws bayesnet_exception
 
@@ -92,6 +93,7 @@ class bayesnet {
         bool dirty;
         SIZE size;
         probability_t *cpt;
+        size_t nr_probabilities;
         uint32_t
             *parent,
             *child,
