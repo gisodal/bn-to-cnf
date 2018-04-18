@@ -466,13 +466,13 @@ void cnf::stats(FILE *file, expression_t* e){
     fprintf(file,"%s    Determinism          : %s\n", prefix, (OPT_DETERMINISTIC_PROBABILITIES?"YES":"NO") );
     fprintf(file,"%s    Simplify             : %s\n", prefix, (OPT_SYMPLIFY?"YES":"NO") );
 
-    fprintf(file,"%s\n",prefix,prefix);
+    fprintf(file,"%s\n",prefix);
     fprintf(file,"%sVariables       : %d\n", prefix, VARIABLES);
     fprintf(file,"%sProbabilities   : %d\n", prefix, e->WEIGHTS);
     fprintf(file,"%sDeterministic   : %d\n", prefix, e->DETERMINISTIC);
     fprintf(file,"%sUnsatisfiable   : %d\n", prefix, e->ZERO);
     fprintf(file,"%sLiterals        : %d\n", prefix, e->LITERALS);
-    fprintf(file,"%sClauses         : %d\n", prefix, e->clauses.size());
+    fprintf(file,"%sClauses         : %lu\n", prefix, e->clauses.size());
 
     int max = 0;
     int min = -1;
@@ -1026,7 +1026,7 @@ void cnf::reduce(std::vector< uint32_t > &clauses, std::vector<clause> &nclauses
     for(auto it = constraints.begin(); it != constraints.end(); it++)
         q.remove_prime(*it);
 
-    printf("    #clauses reduced from %d to %d!\n", clauses.size(), q.get_primes_size());
+    printf("    #clauses reduced from %lu to %d!\n", clauses.size(), q.get_primes_size());
     if(clauses.size() < q.get_primes_size())
         fprintf(stderr, "ERROR: nr of clauses increased!!\n");
     //printf("primes %d: ", q.primes.size());
@@ -1090,7 +1090,7 @@ void cnf::encode_prime(){
                 if(mit->first==-1)
                     printf("NONE  probability: NONE   ");
                 else printf("%-4d  probability: %-.3f  ", expr.LITERALS+1+mit->first, weight_to_probability[mit->first]);
-                printf("literals: %-4d  clauses: %-4d\n", l_to_i.size(), mit->second.size());
+                printf("literals: %-4lu  clauses: %-4lu\n", l_to_i.size(), mit->second.size());
 
                 // print participating clauses
                 //for(unsigned int k = 0; k < clauses.size(); k++){
