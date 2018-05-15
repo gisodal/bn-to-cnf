@@ -30,8 +30,8 @@ set(INCLUDE_DIR ${CMAKE_CURRENT_LIST_DIR}/include)
 file(GLOB HEADERS "${INCLUDE_DIR}/*.h")
 file(GLOB SOURCES "${SOURCE_DIR}/*.cc")
 
-set(LIB_SOURCES ${SOURCES})
-list(REMOVE_ITEM LIB_SOURCES ${SOURCE_DIR}/main.cc)
+set(MAIN ${SOURCE_DIR}/main.cc)
+list(REMOVE_ITEM SOURCES ${MAIN})
 
 ## set include directories
 if (CMAKE_INSTALL_PREFIX_INITIALIZED_TO_DEFAULT)
@@ -41,14 +41,13 @@ message(STATUS "Prefix: ${CMAKE_INSTALL_PREFIX}")
 include_directories( ${INCLUDE_DIR} ${CMAKE_INSTALL_PREFIX}/include)
 link_directories( ${CMAKE_INSTALL_PREFIX}/lib )
 
-# create executable
-add_executable(${PROJECT}-bin ${SOURCES})
-set_target_properties(${PROJECT}-bin PROPERTIES OUTPUT_NAME ${PROJECT})
-target_link_libraries(${PROJECT}-bin quine-mccluskey pthread)
-
 # create library
-add_library(${PROJECT} STATIC ${LIB_SOURCES})
-target_link_libraries(${PROJECT} quine-mccluskey pthread)
+add_library(${PROJECT} STATIC ${SOURCES})
+
+# create executable
+add_executable(${PROJECT}-bin ${MAIN})
+set_target_properties(${PROJECT}-bin PROPERTIES OUTPUT_NAME ${PROJECT})
+target_link_libraries(${PROJECT}-bin ${PROJECT} quine-mccluskey pthread)
 
 # set install locations
 install(TARGETS ${PROJECT}-bin
