@@ -25,6 +25,6 @@ bin
 obj
 lib
 data
-debug
-build
-
+/debug
+/build
+/release
