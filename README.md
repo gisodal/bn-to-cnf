@@ -27,8 +27,12 @@ The program takes a HUGIN encoded Bayesian Network as input and encodes it into 
 
 ## Installation
 
-Just type:
-> make
+To install to `<install_dir>`, type
+
+    > mkdir build
+    > cd build
+    > cmake -DCMAKE_INSTALL_PREFIX:PATH=<install_dir> ..
+    > make install
 
 NOTE: This requires the [quine-mccluskey](https://github.com/gisodal/quine-mccluskey) repository! For a stand alone version use [bayes-to-cnf](https://github.com/gisodal/bayes-to-cnf).
 
