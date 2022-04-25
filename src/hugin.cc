@@ -1,6 +1,7 @@
 #include "exceptions.h"
 #include "hugin.h"
 #include <stdarg.h>
+#include <vector>
 
 using namespace std;
 using namespace HUGIN;
@@ -189,7 +190,7 @@ attribute* domain_element::get_attribute(string varname){
     return NULL;
 }
 
-void bidirected(dbn_t *net, vector<string> &words, string comb[2], int s = 0, int d = 0){
+void bidirected(dbn_t &net, vector<string> &words, string comb[2], int s = 0, int d = 0){
     typedef dbn_t::node node;
 
     if(d < 2) {
@@ -200,8 +201,8 @@ void bidirected(dbn_t *net, vector<string> &words, string comb[2], int s = 0, in
     } else if(d == 2) {
         for(unsigned int i = s; i < words.size(); i++){
             comb[d] = i;
-            node *n0 = net->get_node(comb[0]);
-            node *n1 = net->get_node(comb[1]);
+            node *n0 = net.get_node(comb[0]);
+            node *n1 = net.get_node(comb[1]);
 
             n0->parent.push_back(n1);
             n1->parent.push_back(n0);
@@ -211,77 +212,72 @@ void bidirected(dbn_t *net, vector<string> &words, string comb[2], int s = 0, in
     } else return;
 }
 
-bayesnet* hugin::get_bayesnet(){
-    dbn_t* net = new dbn_t;
+std::vector<bayesnet> hugin::get_bayesnet(){
+    dbn_t net = dbn_t();
     bn_t *bn = NULL;
 
-    if(net){
-        for(auto it = definition.elements.begin(); it != definition.elements.end(); it++){
-            if(it->type == node_domain_element){
-                dbn_t::node *n = net->get_node(it->name);
-                attribute *attr = it->get_attribute("states");
-                if(attr == NULL)
-                    throw hugin_error("node does not appear to have any states");
-                n->value = attr->value.value;
-            } else if(it->type == potential_domain_element){
-                vector<string> words = reader::string_to_words(it->name);
-                bool base = true;
-                vector<string> pre;
-                vector<string> post;
-                for(unsigned int i = 0; i < words.size(); i++){
-                    if(words[i] == "|")
-                        base = false;
-                    else {
-                        if(base)
-                            pre.push_back(words[i]);
-                        else post.push_back(words[i]);
-                    }
+    for(auto it = definition.elements.begin(); it != definition.elements.end(); it++){
+        if(it->type == node_domain_element){
+            dbn_t::node *n = net.get_node(it->name);
+            attribute *attr = it->get_attribute("states");
+            if(attr == NULL)
+                throw hugin_error("node does not appear to have any states");
+            n->value = attr->value.value;
+        } else if(it->type == potential_domain_element){
+            vector<string> words = reader::string_to_words(it->name);
+            bool base = true;
+            vector<string> pre;
+            vector<string> post;
+            for(unsigned int i = 0; i < words.size(); i++){
+                if(words[i] == "|")
+                    base = false;
+                else {
+                    if(base)
+                        pre.push_back(words[i]);
+                    else post.push_back(words[i]);
                 }
+            }
 
-                if(pre.size() > 1){ // bidirectional edges
-                    std::string comp[2];
-                    bidirected(net, pre, comp);
+            if(pre.size() > 1){ // bidirectional edges
+                std::string comp[2];
+                bidirected(net, pre, comp);
+            }
+
+            for(unsigned int i = 0; i < pre.size(); i++){
+                dbn_t::node *pre_n = net.get_node(pre[i]);
+                for(unsigned int j = 0; j < post.size(); j++){
+                    dbn_t::node *post_n = net.get_node(post[j]);
+
+                    pre_n->parent.push_back(post_n);
+                    post_n->child.push_back(pre_n);
                 }
+            }
 
-                for(unsigned int i = 0; i < pre.size(); i++){
-                    dbn_t::node *pre_n = net->get_node(pre[i]);
-                    for(unsigned int j = 0; j < post.size(); j++){
-                        dbn_t::node *post_n = net->get_node(post[j]);
+            dbn_t::node *n = net.get_node(words[0]);
+            attribute *attr = it->get_attribute("data");
 
-                        pre_n->parent.push_back(post_n);
-                        post_n->child.push_back(pre_n);
-                    }
-                }
+            if (attr == NULL)
+                throw hugin_error("node does not appear to have a CPT");
+            if (n == NULL)
+                throw hugin_error("node '%s' not found to store CPT", words[0].c_str());
 
-                dbn_t::node *n = net->get_node(words[0]);
-                attribute *attr = it->get_attribute("data");
+            for (unsigned int i = 0; i < attr->value.value.size(); i++)
+                n->cpt.push_back(atof(attr->value.value[i].c_str()));
 
-                if (attr == NULL)
-                    throw hugin_error("node does not appear to have a CPT");
-                if (n == NULL)
-                    throw hugin_error("node '%s' not found to store CPT", words[0].c_str());
+        } else throw hugin_error("node type unknown");
+    }
 
-                for (unsigned int i = 0; i < attr->value.value.size(); i++)
-                    n->cpt.push_back(atof(attr->value.value[i].c_str()));
+    net.finalize();
+    auto dbns = net.decompose();
+    std::vector<bayesnet> bns(dbns.size()+1);
+    
+    bns[0].init(&net);
+    bns[0].set_filename(filename.c_str());
+    for(unsigned int i = 0; i < dbns.size(); i++) {
+        bns[i+1].init(&(dbns[i]));
+        bns[i+1].set_filename(filename.c_str());
+    }
 
-            } else throw hugin_error("node type unknown");
-        }
-
-        try {
-            net->finalize();
-        } catch(dynamic_bayesnet_error &e){
-            printf("dynamic bayesnet error: %s\n", e.what());
-            throw hugin_error("error finalizing net: %s", e.what());
-        }
-
-        bn = new bn_t();
-        bn->init(net);
-        delete net;
-    } else throw hugin_error("could not allocate bayesnet");
-
-    if(bn)
-        bn->set_filename(filename.c_str());
-
-    return bn;
+    return std::move(bns);
 }
 

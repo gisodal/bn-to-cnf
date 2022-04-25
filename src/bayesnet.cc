@@ -6,6 +6,8 @@
 #include <string.h>
 #include "cnf.h"
 #include "parser.h"
+#include <algorithm> 
+
 using namespace std;
 
 dynamic_bayesnet::node* dynamic_bayesnet::get_node(std::string name){
@@ -14,21 +16,50 @@ dynamic_bayesnet::node* dynamic_bayesnet::get_node(std::string name){
     return n;
 }
 
-int dynamic_bayesnet::wcc(){
+void dynamic_bayesnet::add_node(dynamic_bayesnet::node& node){
+    nodes[node.name] = node;
+}
+
+bool dynamic_bayesnet::operator< (const dynamic_bayesnet &other) const {
+    if (nodes.size() < other.nodes.size())
+        return true;
+    else if (nodes.size() == other.nodes.size()) {
+        if (cpt_size < other.cpt_size)
+            return true;
+        else if (cpt_size == other.cpt_size) {
+            if (parent_size < other.parent_size)
+                return true;
+            else if (parent_size == other.parent_size) {
+                if (child_size > other.child_size)
+                    return true;
+                else if (child_size == other.child_size) {
+                    if (dim_size < other.dim_size)
+                        return true;
+                }
+            }
+        }
+    }
+
+    return false;
+}
+
+
+// decompose the bn into weakly connected components
+std::vector<dynamic_bayesnet> dynamic_bayesnet::decompose() {
     int node_count = nodes.size();
-    if(node_count == 0)
-        return 0;
 
     vector< list<string> > subnet;
     map<dynamic_bayesnet::node*,bool> frontier;
     for(auto it = nodes.begin(); it != nodes.end(); it++)
         frontier[&(it->second)] = true;
 
+    // find all weakly connected components and store in 'subnet'
     deque<dynamic_bayesnet::node*> q;
     while(node_count > 0){
         unsigned int subnet_id = subnet.size();
         subnet.resize(subnet_id+1);
 
+        // find a node that has not been traversed yet, in the frontier
         for(auto it = frontier.begin(); it != frontier.end(); it++){
             if(it->second){
                 q.push_back(it->first);
@@ -38,6 +69,7 @@ int dynamic_bayesnet::wcc(){
             }
         }
 
+        // perform traversals
         while(!q.empty()){
             dynamic_bayesnet::node *n = q.front();
             subnet[subnet_id].push_back(n->name);
@@ -60,28 +92,27 @@ int dynamic_bayesnet::wcc(){
         }
     }
 
-    int list_id = -1;
+    // create a bn for each weakly connected component
+    std::vector<dynamic_bayesnet> bns(subnet.size());
     for(unsigned int i = 0; i < subnet.size(); i++){
-        if(list_id == -1 || (subnet[list_id].size() < subnet[i].size()))
-            list_id = i;
+        for(auto subnet_it = subnet[i].begin(); subnet_it != subnet[i].end(); subnet_it++) {
+            std::string name = *subnet_it;
+            dynamic_bayesnet::node* node = get_node(name);
+            bns[i].add_node(*node);
+        }
+        
+        try {
+            bns[i].finalize();
+        } catch(dynamic_bayesnet_error &e){
+            printf("dynamic bayesnet error: %s\n", e.what());
+            throw hugin_error("error finalizing net: %s", e.what());
+        }
     }
 
-    int node_count_deleted = 0;
-    if(list_id >= 0){
-        int node_count_deleted = nodes.size() - subnet[list_id].size();
-        if(node_count_deleted > 0){
-            auto it = nodes.begin();
-            while(it != nodes.end()){
-                if(find(subnet[list_id].begin(), subnet[list_id].end(), it->second.name) == subnet[list_id].end()){
-                    auto del_it = it;
-                    it++;
-                    nodes.erase(del_it);
-                } else it++;
-            }
-        }
-    } else throw dynamic_bayesnet_error("no connected components");
-
-    return node_count_deleted;
+    // sort then bns by size, such that the largest bn is first
+    sort(bns.begin(), bns.end());
+    reverse(bns.begin(), bns.end());
+    return std::move(bns);
 }
 
 void dynamic_bayesnet::print(){
@@ -115,8 +146,6 @@ void dynamic_bayesnet::print(){
 }
 
 void dynamic_bayesnet::finalize(){
-    wcc();
-
     parent_size = 0;
     child_size = 0;
     dim_size = 0;
@@ -304,7 +333,7 @@ void bayesnet::print(){
     }
 }
 
-bayesnet* bayesnet::read(const char *infile){
+std::vector<bayesnet> bayesnet::read(const char *infile){
     parser<hugin> net;
     try {
         net.process(infile);
@@ -318,7 +347,6 @@ bayesnet* bayesnet::read(const char *infile){
     } catch(throw_string_error &e){
         throw bayesnet_exception("%s", e.what());
     }
-    return NULL;
 }
 
 void bayesnet::clear(){

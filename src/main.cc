@@ -38,8 +38,8 @@ void help(){
 int main(int argc, char **argv){
     cnf f;
     int c;
-    char infile[100] = {0};
-    char outfile[100];
+    char infile[256] = {0};
+    char outfile[256];
     char ext[20] = {0};
 
     bool write = false, stats = false;
@@ -115,27 +115,34 @@ int main(int argc, char **argv){
         return 1;
     }
 
-    f.set_filename(outfile);
-    bayesnet *bn = NULL;
+    std::vector<bayesnet> bns;
     try {
-        bn = net.get_bayesnet();
-        if(bn == NULL)
-            fprintf(stderr, "FAILED\n");
+        bns = net.get_bayesnet();
     } catch(throw_string_error &e){
         fprintf(stderr, "error: %s\n", e.what());
         fprintf(stderr, "FAILED\n");
         return -1;
     }
 
-    f.encode(bn);
-    if(write)
-        f.write();
+    std::vector<cnf> cnfs;
+    for (unsigned int i = 0; i < bns.size(); i++){
+        cnfs.push_back(f);
+
+        std::string out = outfile;
+        out += "." + i;
+
+        cnfs[i].encode(&(bns[i]));
+
+        if(write) {
+            if (i > 0)
+                cnfs[i].write(std::to_string(i).c_str());
+            else
+                cnfs[i].write();
+        }
+    }
 
     if(stats)
-        f.stats();
-
-    // f.print();
-    delete bn;
+        cnfs[0].stats();
 
     return 0;
 }

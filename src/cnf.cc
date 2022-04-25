@@ -169,15 +169,7 @@ void expression::map_literals(){
 
 cnf::cnf(){
     bn = NULL;
-    filename = NULL;
     clear();
-}
-
-cnf::~cnf(){
-    if(filename){
-        free(filename);
-        filename = NULL;
-    }
 }
 
 const std::vector<probability_t>& cnf::get_probability_to_weight() const {
@@ -407,7 +399,7 @@ int cnf::write(const char* outfile, int i){
         }
         fclose(file);
 
-    } else fprintf(stderr, "Could not open file '%s'\n", filename);
+    } else fprintf(stderr, "Could not open file '%s'\n", outfile);
     return 0;
 
 }
@@ -503,7 +495,6 @@ void cnf::stats(FILE *file, expression_t* e){
     //printf("#file,encoding,bool,qm_limit,variables,probabilities,literals,clauses,literal/clauses,clause_min_size,clause_max_size");
     //printf("\n");
 
-    //printf("%s,",filename);
     //printf("%d,",encoding);
     //printf("%d,", OPT_BOOL);
     //printf("%d,", QM_LIMIT);
@@ -1153,10 +1144,6 @@ void cnf::encode_prime(){
         clause_to_weight = nclause_to_weight;
         expr.clauses = nclauses;
     }
-}
-
-void cnf::set_filename(char* name){
-    filename = strdup(name);
 }
 
 void cnf::set_qm_limit(int max){

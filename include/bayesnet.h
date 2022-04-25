@@ -16,6 +16,7 @@ class cnf;
 class dynamic_bayesnet {
     friend class bayesnet;
     public:
+
         struct node {
             std::vector <dynamic_bayesnet::node*> parent;
             std::vector <dynamic_bayesnet::node*> child;
@@ -24,20 +25,42 @@ class dynamic_bayesnet {
             std::vector <unsigned int> dim;
             std::string name;
 
+            node(const node& n) {
+                copy(n);
+            }
+
+            node& operator=(const node& n) {
+                copy(n);
+                return *this;
+            }
+
+            void copy(const node &n) {
+                parent = n.parent;
+                child = n.child;
+                value = n.value;
+                cpt = n.cpt;
+                name = n.name;
+            }
+
             node(std::string node_name) : name(node_name) {};
             node(){};
         };
 
+        bool operator< (const dynamic_bayesnet &other) const; 
         dynamic_bayesnet::node* get_node(std::string);
+
+        std::vector<dynamic_bayesnet> decompose();
+
         void finalize();
-        int wcc();
         void print();
-    private:
+    
+    protected:
         unsigned int parent_size;
         unsigned int child_size;
         unsigned int dim_size;
         unsigned int cpt_size;
 
+        void add_node(node&);
         std::map<std::string,dynamic_bayesnet::node> nodes;
 };
 
@@ -73,7 +96,7 @@ class bayesnet {
         unsigned int get_nr_variables();
         size_t get_nr_probabilities();
 
-        static bayesnet* read(const char*); // throws bayesnet_exception
+        static std::vector<bayesnet> read(const char*); // throws bayesnet_exception
 
         inline uint32_t* get_states();
         inline uint32_t* get_parent(unsigned int);

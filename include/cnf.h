@@ -95,7 +95,6 @@ class cnf {
         };
 
         cnf();
-        ~cnf();
 
         // int read(char*);
         int write(const char *extra = NULL);
@@ -104,7 +103,7 @@ class cnf {
         int encode(bayesnet *bn);
         void set_encoding(int);
         void set_optimization(opt_t);
-        void set_filename(char*);
+        void set_filename(const char*);
         void set_qm_limit(int);
 
         void print();
@@ -142,7 +141,6 @@ class cnf {
         unsigned int qm_eligible;
         unsigned int qm_possible;
         int encoding;
-        char *filename;
         bool
             OPT_PARTITION,
             OPT_EQUAL_PROBABILITIES,
